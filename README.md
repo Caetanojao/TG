@@ -27,3 +27,8 @@ Derrubar
 ```
 docker-compose down 
 ```
+
+## Atualizar IPs e tokens 
+
+Script Powershell 
+netbox/plugin.py
