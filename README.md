@@ -30,5 +30,4 @@ docker-compose down
 
 ## Atualizar IPs e tokens 
 
-Script Powershell 
-netbox/plugin.py
+Script Powershell // netbox/plugin.py
