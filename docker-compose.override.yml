@@ -1,0 +1,23 @@
+services:
+  netbox:
+    image: netbox:latest-plugins
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: Dockerfile-Plugins
+    ports:
+      - "8000:8080"
+
+  netbox-worker:
+    image: netbox:latest-plugins
+    pull_policy: never
+    command: >
+      /opt/netbox/venv/bin/python
+      /opt/netbox/netbox/manage.py rqworker
+
+  netbox-housekeeping:
+    image: netbox:latest-plugins
+    pull_policy: never
+    command: >
+      /opt/netbox/venv/bin/python
+      /opt/netbox/netbox/manage.py housekeeping

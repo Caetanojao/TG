@@ -1,0 +1,142 @@
+version: '3.8'
+
+services:
+  netbox:
+    image: netbox:latest-plugins
+    build:
+      context: .
+      dockerfile: Dockerfile-Plugins
+    container_name: netbox
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    ports:
+      - "8000:8080"
+    environment:
+      - DB_NAME=netbox
+      - DB_USER=netbox
+      - DB_PASSWORD=netbox
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SECRET_KEY=Dzk3^mT^659LBuPZWW0igz5evVfWYz7xFdMhsUA)DRxXNIKbDI
+      - ALLOWED_HOSTS=*
+      - DB_WAIT_TIMEOUT=60
+      - DB_WAIT_DEBUG=1
+    volumes:
+      - netbox-data:/opt/netbox/netbox/media
+
+  netbox-worker:
+    image: netbox:latest-plugins
+    container_name: netbox-worker
+    command: >
+      /opt/netbox/venv/bin/python
+      /opt/netbox/netbox/manage.py
+      rqworker
+    depends_on:
+      netbox:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      - DB_NAME=netbox
+      - DB_USER=netbox
+      - DB_PASSWORD=netbox
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SECRET_KEY=Dzk3^mT^659LBuPZWW0igz5evVfWYz7xFdMhsUA)DRxXNIKbDI
+      - DB_WAIT_TIMEOUT=60
+      - DB_WAIT_DEBUG=1
+
+  netbox-housekeeping:
+    image: netbox:latest-plugins
+    container_name: netbox-housekeeping
+    command: >
+      /opt/netbox/venv/bin/python
+      /opt/netbox/netbox/manage.py
+      housekeeping
+    depends_on:
+      netbox:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      - DB_NAME=netbox
+      - DB_USER=netbox
+      - DB_PASSWORD=netbox
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SECRET_KEY=Dzk3^mT^659LBuPZWW0igz5evVfWYz7xFdMhsUA)DRxXNIKbDI
+      - DB_WAIT_TIMEOUT=60
+      - DB_WAIT_DEBUG=1
+
+  postgres:
+    image: postgres:15
+    container_name: netbox-postgres
+    environment:
+      - POSTGRES_DB=netbox
+      - POSTGRES_USER=netbox
+      - POSTGRES_PASSWORD=netbox
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U netbox"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:6
+    container_name: netbox-redis
+
+  zabbix-db:
+    image: postgres:14
+    container_name: zabbix-db
+    environment:
+      - POSTGRES_DB=zabbix
+      - POSTGRES_USER=zabbix
+      - POSTGRES_PASSWORD=zabbix
+    volumes:
+      - zabbix-db-data:/var/lib/postgresql/data
+
+  zabbix-server:
+    image: zabbix/zabbix-server-pgsql:alpine-6.0-latest
+    ports:
+      - "10051:10051"
+    container_name: zabbix-server
+    depends_on:
+      - zabbix-db
+    environment:
+      - DB_SERVER_HOST=zabbix-db
+      - POSTGRES_USER=zabbix
+      - POSTGRES_PASSWORD=zabbix
+
+  zabbix-web:
+    image: zabbix/zabbix-web-nginx-pgsql:alpine-6.0-latest
+    container_name: zabbix-web
+    depends_on:
+      - zabbix-server
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_SERVER_HOST=zabbix-db
+      - POSTGRES_USER=zabbix
+      - POSTGRES_PASSWORD=zabbix
+      - ZBX_SERVER_HOST=zabbix-server
+      - PHP_TZ=America/Sao_Paulo
+
+volumes:
+  netbox-data:
+  postgres-data:
+  zabbix-db-data:
