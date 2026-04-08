@@ -6,8 +6,8 @@
 netbox-docker/
 │
 ├── docker-compose.yml
-├── docker-compose.override.yml   # usa o plugin
-├── Dockerfile_Plugins            # ESSE você altera
+├── docker-compose.override.yml   
+├── Dockerfile_Plugins           
 ├── plugin_requirements.txt
 │
 └── netbox/
