@@ -19,13 +19,13 @@ TG/
 Subir
 
 ```
-docker-compose up -d 
+docker compose up -d 
 ```
 
 Derrubar
 
 ```
-docker-compose down 
+docker compose down 
 ```
 
 ## Atualizar IPs e tokens 
