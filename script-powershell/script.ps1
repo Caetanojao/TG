@@ -6,9 +6,10 @@ $Headers = @{
     "Content-Type"  = "application/json"
 }
 
-# =========================
+##########
 # CLUSTER
-# =========================
+##########
+
 $clusterName = $env:COMPUTERNAME
 
 $cluster = (Invoke-RestMethod -Uri "$NetBoxUrl/virtualization/clusters/?name=$clusterName" -Headers $Headers).results
@@ -24,20 +25,28 @@ if (-not $cluster) {
 
 $clusterId = $cluster.id
 
-# =========================
-# LOOP VMs
-# =========================
+##########
+# GET VMS 
+##########
+
 Get-VM | ForEach-Object {
 
     $vm = $_
 
     # CPU / MEM
     $cpu = (Get-VMProcessor -VMName $vm.Name).Count
-    $memMB = [math]::Round($vm.MemoryAssigned / 1MB)
+    $memConfig = Get-VMMemory -VMName $vm.Name
 
-    # =========================
+    if ($memConfig.DynamicMemoryEnabled) {
+    $memMB = [math]::Round($memConfig.Maximum / 1MB)
+    } else {
+    $memMB = [math]::Round($memConfig.Startup / 1MB)
+    }
+
+    #######
     # REDE
-    # =========================
+    #######
+
     $net = Get-VMNetworkAdapter -VMName $vm.Name
 
     $ip = $net.IPAddresses | Where-Object { $_ -match "\." } | Select-Object -First 1
@@ -50,9 +59,10 @@ Get-VM | ForEach-Object {
         $mac = $null
     }
 
-    # =========================
+    ########
     # DISCO
-    # =========================
+    ########
+
     $disk = Get-VMHardDiskDrive -VMName $vm.Name | Select-Object -First 1
 
     if ($disk.Path) {
@@ -66,9 +76,10 @@ Get-VM | ForEach-Object {
 
     $diskMB = [math]::Round($sizeGB * 1024)
 
-    # =========================
+    #########
     # SERIAL
-    # =========================
+    #########
+
     try {
         $bios = Get-WmiObject -Namespace "root\virtualization\v2" -Class Msvm_VirtualSystemSettingData |
         Where-Object { $_.ElementName -eq $vm.Name }
@@ -78,9 +89,10 @@ Get-VM | ForEach-Object {
         $serial = ""
     }
 
-    # =========================
+    #####################
     # VM CREATE / UPDATE
-    # =========================
+    #####################
+
     $existingVM = (Invoke-RestMethod -Uri "$NetBoxUrl/virtualization/virtual-machines/?name=$($vm.Name)" -Headers $Headers).results
 
     $vmBody = @{
@@ -101,9 +113,10 @@ Get-VM | ForEach-Object {
         $vmId = $newVM.id
     }
 
-    # =========================
+    #############
     # INTERFACE
-    # =========================
+    #############
+
     $ifaceName = "eth0"
 
     $iface = (Invoke-RestMethod -Uri "$NetBoxUrl/virtualization/interfaces/?virtual_machine_id=$vmId&name=$ifaceName" -Headers $Headers).results
@@ -122,9 +135,10 @@ Get-VM | ForEach-Object {
         $ifaceId = $iface[0].id
     }
 
-    # =========================
+    #################
     # MAC NO NETBOX
-    # =========================
+    #################
+
     $macId = $null
 
     if ($mac) {
@@ -144,7 +158,7 @@ Get-VM | ForEach-Object {
             $macId = $existingMac[0].id
         }
 
-        # ASSOCIA MAC NA INTERFACE + DEFINE COMO PRIMARY
+        # ASSOCIA MAC NA INTERFACE
         $updateIface = @{
             mac_address     = $macId
             primary_mac_address = $macId
@@ -153,9 +167,10 @@ Get-VM | ForEach-Object {
         Invoke-RestMethod -Uri "$NetBoxUrl/virtualization/interfaces/$ifaceId/" -Method PATCH -Headers $Headers -Body $updateIface
     }
 
-    # =========================
+    ######
     # IP
-    # =========================
+    ######
+
     if ($ip) {
 
         $existingIP = (Invoke-RestMethod -Uri "$NetBoxUrl/ipam/ip-addresses/?address=$ip" -Headers $Headers).results
@@ -182,5 +197,5 @@ Get-VM | ForEach-Object {
         Invoke-RestMethod -Uri "$NetBoxUrl/virtualization/virtual-machines/$vmId/" -Method PATCH -Headers $Headers -Body $primaryBody
     }
 
-    Write-Host "✔ VM sincronizada: $($vm.Name)"
+    Write-Host "VM sincronizada: $($vm.Name)"
 }
